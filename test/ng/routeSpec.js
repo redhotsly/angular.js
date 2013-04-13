@@ -970,5 +970,70 @@ describe('$route', function() {
         });
       });
     });
+
+    describe('noReloadOn', function() {
+
+
+      it('should reload when new route does not equal noReloadOn', function() {
+        var log = '',
+          lastRoute,
+          nextRoute;
+
+        module(function($routeProvider) {
+          $routeProvider.when('/Book/new', {noReloadTo: '/Author/:book'});
+          $routeProvider.when('/Book/:book', {});
+        });
+        inject(function($route, $location, $rootScope) {
+          $rootScope.$on('$routeChangeStart', function(event, next, current) {
+            log += 'before();';
+            expect(current).toBe($route.current);
+            lastRoute = current;
+            nextRoute = next;
+          });
+          $rootScope.$on('$routeChangeSuccess', function(event, current, last) {
+            log += 'after();';
+            expect(current).toBe($route.current);
+            expect(lastRoute).toBe(last);
+            expect(nextRoute).toBe(current);
+          });
+
+          $location.path('/Book/new');
+          $rootScope.$digest();
+
+          log = '';
+          $location.path('/Book/1234');
+          $rootScope.$digest();
+          expect(log).toEqual('before();after();');
+          expect($route.current.params).toEqual({book:'1234'});
+        });
+      });
+
+      it('should not reload when new route equals noReloadOn', function() {
+        var log = '';
+
+        module(function($routeProvider) {
+          $routeProvider.when('/Book/new', {noReloadTo: '/Book/:book'});
+          $routeProvider.when('/Book/:book', {});
+        });
+        inject(function($route, $location, $rootScope) {
+          $rootScope.$on('$routeChangeStart', function(event, next, current) {
+            log += 'before();';
+          });
+          $rootScope.$on('$routeChangeSuccess', function(event, current, last) {
+            log += 'after();';
+          });
+
+          $location.path('/Book/new');
+          $rootScope.$digest();
+
+          log = '';
+          var expected = $route.current;
+          $location.path('/Book/1234');
+          $rootScope.$digest();
+          expect(log).toEqual(''); //no events were fired
+          expect($route.current).toBe(expected); //we have not changed route
+        });
+      });
+    });
   });
 });

@@ -86,6 +86,22 @@ function $RouteProvider(){
    *      The custom `redirectTo` function is expected to return a string which will be used
    *      to update `$location.path()` and `$location.search()`.
    *
+   *    - `noReloadTo` – {(string)=} – do not reload route if new location matches this value.
+   *
+   *      This option is useful to prevent changing route when the current view/controller can also
+   *      be used in place of the route matching the new location.
+   *
+   *      Given routes:
+   *
+   *          $routeProvider.when('/Book/new', {templateUrl:"book.html", controller:BookCtrl, noReloadTo: '/Author/:book'});
+   *          $routeProvider.when('/Book/:book', {templateUrl:"book.html", controller:BookCtrl});
+   *
+   *      When currently on /Book/new and when POSTing to a service that returns the new entity,
+   *      the controller can update the current scope with the new entity to update the view. However,
+   *      the controller must also change $location to reflect the Id of the new entity (/Book/Moby).
+   *      With `noReloadTo`, the browser's url is changed but the route is not triggered, therefore saving
+   *      a rendering of the same view and probably saving a GET to fetch 'Moby' again.
+   *
    *    - `[reloadOnSearch=true]` - {boolean=} - reload route when only $location.search()
    *    changes.
    *
@@ -103,7 +119,7 @@ function $RouteProvider(){
    * Adds a new route definition to the `$route` service.
    */
   this.when = function(path, route) {
-    routes[path] = extend({reloadOnSearch: true, caseInsensitiveMatch: false}, route);
+    routes[path] = extend({reloadOnSearch: true, caseInsensitiveMatch: false, noReloadTo: undefined, path: path}, route);
 
     // create redirection for trailing slashes
     if (path) {
@@ -395,6 +411,7 @@ function $RouteProvider(){
     }
 
     function updateRoute() {
+
       var next = parseRoute(),
           last = $route.current;
 
@@ -405,6 +422,13 @@ function $RouteProvider(){
         $rootScope.$broadcast('$routeUpdate', last);
       } else if (next || last) {
         forceReload = false;
+
+
+        if ( next && last && next.path && last.noReloadTo && (last.noReloadTo === next.path) ){
+          return;
+        }
+
+
         $rootScope.$broadcast('$routeChangeStart', next, last);
         $route.current = next;
         if (next) {
